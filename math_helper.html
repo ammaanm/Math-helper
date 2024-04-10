@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Math Helper</title>
+    <style>
+        * {font-size:1.2rem;}
+        .big {font-size:1.4rem;}
+        .small {font-size:1.2rem;}
+        .before_space {margin-left: 1.6rem;}
+        body {background-color: skyblue; /* margin-left: 10px;*/ }
+        input.op_checkbox {transform: scale(1.5);}
+        #min {width: 5em;}
+        #max {width: 5rem;}
+        #minLen {width: 2rem;}
+        #maxLen {width: 2rem;}
+        input.correct_height {height: 1em;}
+
+    </style>
+    <script>
+        const ALPHABET  = [...'abcdefghijklmnopqrstuvwxyz'];
+        const OPERATORS = ["+", "-", "*", "/", "^", "&radic;"];
+        const WEIGHT    = [6,   6,   4,   4,   2,  1]
+        const OPERATORS_DICT = {
+            "+":       (a,b) => (a+b),
+            "-":       (a,b) => (a-b),
+            "*":       (a,b) => (a*b),
+            "/":       (a,b) => (a/b),
+            "^":       (a,b) => (Math.pow(a,b)),
+            "&radic;": (a) => (Math.pow(a,0.5)),
+        };
+        const OPERATORS_OPPOSITE = {
+            "+":"-","-":"+",
+            "*":"/", "/":"*"
+        };
+        const SPECIFIC_OP = ["^", "&radic;"]
+
+        let body;
+        let lastBody;
+        let lastFormData;
+        
+        function undoRegenerate() {
+            document.body.innerHTML = lastBody
+            document.getElementById("undoRegenerate").style.visibility = "hidden"
+            deserializeForm(lastFormData)
+        }
+
+        function serializeForm() {
+            // let a = new FormData(document.getElementById("form"))
+            // let b = []
+            // for (i of document.getElementsByClassName("op_checkbox")) {
+            //     b.push([i.id, i.checked])
+            // }
+            return new FormData(document.getElementById("form"))
+        }
+        function deserializeForm(data) {
+            // let form = document.getElementById("form")
+            for (i of data.entries()) {
+                let j = document.getElementById(i[0])
+                j.value = i[1]
+                j.checked = true
+            }
+            // let b = []
+            // for (i of document.getElementsByClassName("op_checkbox")) {
+            //     document.getElementById(i[0]).checked = i[1]
+            // }
+        }
+
+        function regenerate() {
+            // document.findElementById("center").remove()
+            let lastFormData1 = serializeForm()
+            // if (body != document.body.innerHTML || lastFormData != lastFormData1) {
+                let lastBody1 = document.body.innerHTML
+                document.body.innerHTML = body
+                onResize()
+                // if (lastFormData != lastFormData1 || document.body.innerHTML != lastBody1) {
+                    document.getElementById("undoRegenerate").style.visibility = "visible"
+                    lastBody = lastBody1
+                    lastFormData = lastFormData1
+                }
+        //         else {
+        //             document.getElementById("noUndoErr").style.visibility = "visible"
+        //             setTimeout(hideNoUndoErr, 2500)
+        //         }
+        //     }
+        //     else {
+        //         document.getElementById("noUndoErr").style.visibility = "visible"
+        //         setTimeout(hideNoUndoErr, 2500)
+        //     }
+        // }
+        
+        function onChange() {
+            document.getElementById("undoRegenerate").style.visibility = "hidden"
+        }
+        // function hideNoUndoErr() {
+        //     document.getElementById("noUndoErr").style.visibility = "hidden"
+        // }
+
+        function generateCheckboxes() {
+                for (const [index, element] of OPERATORS.entries()) {
+                    let inp = document.getElementById("form").appendChild(document.createElement("input"));
+                    Object.assign(inp, 
+                    {"type":"checkbox", "name":"op"+index, "id": "op"+index, "value":element, 
+                    "className": "before_space op_checkbox",  "oninput":"onChange();"});
+                    // inp.setAttribute("class", "op_checkbox");
+                    // document.createElement("label", {"for":"op"+index}).textContent = element;
+                    let lbl = document.getElementById("form").appendChild(document.createElement("label"));
+                    lbl.setAttribute("for", "op"+index);
+                    lbl.innerHTML = "<span> "+element+" </span>";
+                    // console.log(element+""+index);
+                }
+            }
+
+        function onLoad() {
+            // generateCheckboxes()
+            // let last = OPERATORS.indexOf(OPERATORS[0])
+            // for (key of OPERATORS.slice(1)) {
+            //     // console.log(key);
+            //     WEIGHT[OPERATORS.indexOf(key)] += WEIGHT[last];
+            //     last = OPERATORS.indexOf(key);
+            // }
+            onResize();
+            document.getElementById("undoRegenerate").style.visibility = "hidden"
+            // hideNoUndoErr()
+            body = document.body.innerHTML
+            lastFormData = serializeForm()
+        }
+        
+        function onResize() {
+                let inp_field = document.getElementById("inp_field");
+                inp_field.setAttribute("size", Math.floor(window.innerWidth/14));
+            }
+
+        function onFormSubmit() {
+            // console.log(document.getElementsByClassName("op_checkbox"));
+            let text = document.getElementById("inp_field").value.toLowerCase();
+            let newOperators = []
+            for (i of document.getElementsByClassName("op_checkbox")) {
+                // console.log(i.innerHTML)
+                // console.log(i.checked, i.value)
+                if (i.checked) {
+                    newOperators.push(i.value);
+                }
+                // operators = newOperators;
+            }
+
+            console.log(text, [...text]);
+            let result = []
+            console.log(min, max);
+            for (letter of [...text]) {
+                let index = ALPHABET.indexOf(letter);
+                if (index < 0) {
+                    result.push(letter);
+                    continue
+                }
+                //TODO backend
+                // result.push(letter+index);
+                result.push(generateEquation(index, newOperators))
+            }
+
+            console.log(result);
+            let dialog = document.getElementById("result");
+            for (equation of result) {
+                let txt = document.createElement("p");
+                txt.innerHTML = equation;
+                dialog.appendChild(txt);
+                dialog.appendChild(document.createElement("br"));
+            }
+            dialog.show()
+        }
+        
+        function generateEquation(numNeeded, operations) {
+            const max = Number(document.getElementById("max").value);
+            const min = Number(document.getElementById("min").value);
+            const maxLen = Number(document.getElementById("maxLen").value);
+            const minLen = Number(document.getElementById("minLen").value);
+            const len = random(minLen, maxLen);
+
+            console.log(len, random(minLen, maxLen), "max", maxLen, "min", minLen);
+            let result = [];
+            let curNum = 0;
+            result.push(random(min, max));
+            curNum+=result[0];
+            // result.push(weighted_random(operations, WEIGHT, OPERATORS));
+            let operatorWeight = 0;
+            for (let i = 1; i<len; i++) {
+                let op = weighted_random(operations, WEIGHT, OPERATORS);
+                console.log(OPERATORS_DICT[op], op);
+                if (op == undefined) {
+                    console.error("operator "+op)
+                }
+                if (operatorWeight > WEIGHT[OPERATORS.indexOf(op)]) {
+                    console.log(result)
+                    result = ["("].concat(result);
+                    result.push(")");
+                }
+                operatorWeight = WEIGHT[OPERATORS.indexOf(op)]
+
+                if (SPECIFIC_OP.includes(op)) {
+                    switch (op) {
+                        case "&radic;":
+                            result = [op].concat(result)
+                            result = ["("].concat(result);
+                            result.push(")");
+                            curNum = OPERATORS_DICT["&radic;"](curNum)
+                            break;
+                        case "^":
+                        // let num = random(min-curNum, max-curNum);
+                            let a = [...Array(Math.ceil(OPERATORS_DICT["&radic;"](max))).keys()].map((a) => (a+1))
+                            // console.log(a, a.reverse(), a);
+                            let num = weighted_random(a, a.reverse(), a);
+                            result.push(op);
+                            result.push(num);
+                            curNum = OPERATORS_DICT[op](curNum, num)
+                            break;
+                        default:
+                            console.error("SPECIFIC OPERATION NOT PROCCESED!!!");
+                            break;
+                    }
+                }
+                else {
+                    let num = random(min-curNum, max-curNum);
+                    result.push(op);
+                    result.push(num);
+                    curNum = OPERATORS_DICT[op](curNum, num)
+                }                          
+            }
+
+            let ops = operations.filter( x => !SPECIFIC_OP.includes(x) )
+            if (ops.length < 1) {
+                ops = OPERATORS.filter( x => !SPECIFIC_OP.includes(x) )
+            }
+            let num = 0.001;
+            let op;
+            let tries = 0;
+            while ((Math.abs(Math.round(num) - num) < 0.1) && tries < 8) {
+                op = weighted_random(ops, WEIGHT, OPERATORS)
+                num = OPERATORS_DICT[OPERATORS_OPPOSITE[op]](numNeeded, curNum)
+                tries += 1
+            }
+            result.push(op, num)
+            for (i of result.entries()) {
+                console.log(i, typeof i[1], i[1]<0)
+                if (typeof i[1] == "number" && i[1]<0) {
+                    console.log("()   "+"("+i[1]+")")
+                    result[i[0]] = "(" + i[1] + ")"
+                }
+            }
+            // result.push("= "+curNum)
+            return result.join(" ")
+        }
+        
+        function random(min, max) {
+            min = Number(min);
+            max = Number(max);
+            return Math.floor(Math.random() * (max + 1 - min) + min);
+        }
+
+        function weighted_random(items, weights_, indexer) {
+            let last = indexer.indexOf(items[0])
+            weights = [weights_[last]]
+            for (key of items.slice(1)) {
+                i = indexer.indexOf(key)
+                console.log(key, i, weights_[i]+weights[weights.length-1], "=", weights_[i], "+", weights[weights.length-1]);
+                weights.push(weights_[i]+weights[weights.length-1])
+                last = i;
+            }
+            console.log(weights, weights[weights.length-1])
+            // let last = indexer.indexOf(items[items.length-2]);
+            
+            console.log(weights, items, items[items.length-2], indexer, last, weights[last])
+            const random = Math.random() * weights[weights.length-1];
+            console.log(weights, items, "\n", "Math.random() * ",weights[weights.length-1], "=", random)
+            for (key in items) {
+                console.log(weights, key, weights[key], items[key])
+                if (weights[key] > random) {
+                    // console.log(weights, key, indexer.indexOf(key), weights[indexer.indexOf(key)])
+                    break;
+                }
+            }
+            
+            // console.log(key, indexer.indexOf(key), items[indexer.indexOf(key)])
+            console.log(weights, key, weights[key], items[key])
+            return items[key];
+        }
+
+        window.addEventListener('resize', onResize);
+        document.addEventListener("DOMContentLoaded", onLoad);
+    </script>
+</head>
+<body>
+    <button onclick="regenerate()">Reset</button>
+    <button onclick="undoRegenerate()" id="undoRegenerate">Back</button>
+    <br>
+    <!-- <p id="noUndoErr">Nothing To Undo</p> -->
+    <center>
+        <h3 class="big">Math Helper</h4>
+        <br>
+        <dialog open>
+            <form id = "form" method="dialog">
+                <label for="inp_field" class="big"> Your Text: </label>
+                <br>
+                <input name="inp_field" type="text" autocomplete="off" id = "inp_field" oninput="onChange();">
+                <br><br>
+                <label for="min" class="big">Min: </label>
+                <input type="number" id="min" name="min" class="correct_height" oninput="onChange();">
+                <label for="max" class="big">Max: </label>
+                <input type="number" id="max" name="max" class="correct_height" oninput="onChange();">
+                <br>
+                <label for="minLen" class="big">Min number of operators: </label>
+                <input type="number" id="minLen" name="minLen" class="correct_height" oninput="onChange();">
+                <label for="maxLen" class="big ">Max number of operators: </label>
+                <input type="number" id="maxLen" name="maxLen" class="correct_height" oninput="onChange();">
+                <br><br>
+                <script>generateCheckboxes()</script>
+                <br><br>
+                <input type="submit" onclick="onFormSubmit();">
+            </form>
+        </dialog>
+        <dialog id="result">
+            <label class="big">Note: «Always round to the nearest whole numbers»</label>
+        </dialog>
+    </center>
+</body>
+</html>
